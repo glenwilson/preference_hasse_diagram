@@ -17,46 +17,53 @@
       <p class="eyebrow">Crowd-sourced preference ordering</p>
       <h1>Which song do you prefer?</h1>
       <p class="intro">
-        Vote on a pair of songs. The shared Hasse diagram updates in real time
-        as people vote.
+        Choose the song you prefer, say that the songs are incomparable, or
+        skip the comparison. The shared partial order updates in real time.
       </p>
     </header>
 
     <section class="vote-card" aria-labelledby="question">
       <p id="question" class="question">Choose the response that fits you:</p>
 
-      <div id="comparison" class="comparison">
-        <button id="song-a-button" class="song-button" type="button"></button>
+      <div class="comparison">
+        <button id="song-a-button" class="song-button" type="button">
+          Loading song…
+        </button>
 
         <span class="versus" aria-hidden="true">VS</span>
 
-        <button id="song-b-button" class="song-button" type="button"></button>
+        <button id="song-b-button" class="song-button" type="button">
+          Loading song…
+        </button>
       </div>
 
-<div class="comparison-actions">
-  <button
-    id="incomparable-button"
-    class="incomparable-button"
-    type="button"
-  >
-    <span class="incomparable-icon" aria-hidden="true">↮</span>
-    <span>
-      <strong>Incomparable</strong>
-      <small>Neither song is better, in my view</small>
-    </span>
-  </button>
+      <div class="comparison-actions">
+        <button
+          id="incomparable-button"
+          class="incomparable-button"
+          type="button"
+        >
+          <span class="incomparable-icon" aria-hidden="true">↮</span>
+          <span>
+            <strong>Incomparable</strong>
+            <small>Neither song is better, in my view</small>
+          </span>
+        </button>
 
-  <button id="skip-button" class="text-button" type="button">
-    Skip this comparison →
-  </button>
-</div>
+        <button id="skip-button" class="text-button" type="button">
+          Skip this comparison →
+        </button>
+      </div>
 
-<p class="comparison-help">
-  Choose <strong>Incomparable</strong> if these songs cannot meaningfully be
-  ordered by your preferences. Skip records no response.
-</p>
-      
-      <p id="vote-status" class="status" aria-live="polite">Connecting…</p>
+      <p class="comparison-help">
+        <strong>Incomparable</strong> records that these songs cannot be
+        meaningfully ordered by your preferences. <strong>Skip</strong>
+        records no response.
+      </p>
+
+      <p id="vote-status" class="status" aria-live="polite">
+        Connecting…
+      </p>
     </section>
 
     <section class="diagram-card" aria-labelledby="diagram-title">
@@ -64,27 +71,21 @@
         <div>
           <h2 id="diagram-title">Live Hasse diagram</h2>
           <p>
-            Higher nodes are preferred over lower nodes. Lines show only direct
-            preference relations; implied transitive relations are omitted.
+            Higher songs are crowd-preferred over lower songs. Lines represent
+            direct relations only; implied transitive relations are omitted.
           </p>
         </div>
 
         <div id="stats" class="stats">0 responses</div>
       </div>
 
-      <div id="graph-container" class="graph-container">
+      <div class="graph-container">
         <svg
           id="hasse-diagram"
           role="img"
           aria-label="Live crowd-sourced song preference Hasse diagram"
         ></svg>
       </div>
-
-      <p class="diagram-note">
-        A relation is displayed only when the crowd gives sufficient support to
-        one directional preference. “Incomparable” responses can prevent a
-        relation from appearing.
-      </p>
 
       <div id="order-explanation" class="order-explanation"></div>
     </section>

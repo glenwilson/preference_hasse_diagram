@@ -145,6 +145,64 @@ footer,
   letter-spacing: 0.08em;
 }
 
+.comparison-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 12px;
+  margin-top: 16px;
+}
+
+.secondary-button,
+.text-button {
+  min-height: 42px;
+  padding: 10px 15px;
+  border-radius: 10px;
+  cursor: pointer;
+  font: inherit;
+  font-weight: 700;
+}
+
+.secondary-button {
+  color: var(--primary-dark);
+  background: var(--accent);
+  border: 1px solid #c7d2fe;
+}
+
+.secondary-button:hover:not(:disabled),
+.secondary-button:focus-visible:not(:disabled) {
+  background: #dfe5ff;
+  border-color: var(--primary);
+  outline: none;
+}
+
+.text-button {
+  color: var(--muted);
+  background: transparent;
+  border: 1px solid transparent;
+}
+
+.text-button:hover:not(:disabled),
+.text-button:focus-visible:not(:disabled) {
+  color: var(--text);
+  background: #f3f4f6;
+  outline: none;
+}
+
+.secondary-button:disabled,
+.text-button:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
+.comparison-help {
+  margin: 14px 0 0;
+  color: var(--muted);
+  font-size: 0.88rem;
+  line-height: 1.5;
+  text-align: center;
+}
+
 .status {
   min-height: 24px;
   margin: 18px 0 0;
@@ -194,6 +252,26 @@ footer,
 .diagram-note {
   margin: 18px 0 0;
   font-size: 0.9rem;
+}
+
+.order-explanation {
+  margin-top: 18px;
+  padding: 16px;
+  color: #374151;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  font-size: 0.9rem;
+  line-height: 1.55;
+}
+
+.order-explanation p:last-child {
+  margin-bottom: 0;
+}
+
+.order-explanation ul {
+  margin: 8px 0 0;
+  padding-left: 20px;
 }
 
 .node-circle {

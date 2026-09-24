@@ -557,17 +557,82 @@ function renderDiagram(edges) {
 
   svg.attr("viewBox", `0 0 ${width} ${height}`);
 
+  const defs = svg.append("defs");
+
+  defs
+    .append("marker")
+    .attr("id", "arrowhead")
+    .attr("viewBox", "0 -5 10 10")
+    .attr("refX", 11)
+    .attr("refY", 0)
+    .attr("markerWidth", 6)
+    .attr("markerHeight", 6)
+    .attr("orient", "auto")
+    .append("path")
+    .attr("fill", "#94a3b8")
+    .attr("d", "M0,-5L10,0L0,5");
+
+  /*
+    If no relations have been accepted, the songs form an antichain:
+    they are still valid nodes in the partial order, just with no edges.
+  */
   if (edges.length === 0) {
     svg
       .append("text")
       .attr("class", "empty-graph-message")
       .attr("x", width / 2)
-      .attr("y", height / 2)
+      .attr("y", 38)
       .attr("text-anchor", "middle")
-      .text("Vote on song pairs to begin building the preference order.");
-
-    return;
+      .text("No crowd-supported ordering relations yet — songs are currently incomparable.");
   }
+
+  /*
+    Draw edges only when there are accepted cover relations.
+  */
+  svg
+    .append("g")
+    .selectAll("line")
+    .data(edges)
+    .join("line")
+    .attr("class", "edge")
+    .attr("x1", (edge) => graph.positions.get(edge.from).x)
+    .attr("y1", (edge) => graph.positions.get(edge.from).y + 18)
+    .attr("x2", (edge) => graph.positions.get(edge.to).x)
+    .attr("y2", (edge) => graph.positions.get(edge.to).y - 18)
+    .attr("marker-end", "url(#arrowhead)");
+
+  /*
+    Always draw every song, including isolated nodes.
+  */
+  const nodes = svg
+    .append("g")
+    .selectAll("g")
+    .data(graph.nodes)
+    .join("g")
+    .attr(
+      "transform",
+      (song) =>
+        `translate(${graph.positions.get(song.id).x}, ${
+          graph.positions.get(song.id).y
+        })`
+    );
+
+  nodes.append("circle").attr("class", "node-circle").attr("r", 18);
+
+  nodes
+    .append("text")
+    .attr("class", "node-label")
+    .attr("x", 28)
+    .attr("y", -2)
+    .text((song) => song.title);
+
+  nodes
+    .append("text")
+    .attr("class", "node-artist")
+    .attr("x", 28)
+    .attr("y", 14)
+    .text((song) => song.artist);
+}
 
   const defs = svg.append("defs");
 
@@ -657,6 +722,11 @@ function layoutGraph(edges, width) {
   const positions = new Map();
   const maxRank = Math.max(...rank.values());
 
+  /*
+    Put isolated nodes lower down to leave room for the explanation message.
+  */
+  const startingY = edges.length === 0 ? 120 : 64;
+
   for (const [level, levelSongs] of levels) {
     levelSongs.sort((a, b) => a.title.localeCompare(b.title));
 
@@ -665,7 +735,7 @@ function layoutGraph(edges, width) {
     levelSongs.forEach((song, index) => {
       positions.set(song.id, {
         x: spacing * (index + 1),
-        y: 64 + level * 125,
+        y: startingY + level * 125,
       });
     });
   }
@@ -673,7 +743,7 @@ function layoutGraph(edges, width) {
   return {
     nodes: songs,
     positions,
-    height: 140 + maxRank * 125,
+    height: startingY + 140 + maxRank * 125,
   };
 }
 

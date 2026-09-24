@@ -217,11 +217,13 @@ async function submitVote(choice) {
       return data;
     });
 
-    if (!result.committed) {
-      status("You have already responded to this pair.");
-    } else {
-      status("Response saved. Loading another comparison…");
-    }
+if (!result.committed) {
+  status("You have already responded to this pair.");
+} else if (choice === "incomparable") {
+  status("Recorded: these songs are incomparable to you. Loading another pair…");
+} else {
+  status("Preference recorded. Loading another comparison…");
+}
   } catch (error) {
     console.error(error);
     status("Your response could not be saved. Please try again.");

@@ -1,0 +1,74 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Crowd Song Preference Order</title>
+  <meta
+    name="description"
+    content="A live crowd-sourced song preference partial order and Hasse diagram."
+  />
+  <link rel="stylesheet" href="style.css" />
+</head>
+
+<body>
+  <main class="page">
+    <header>
+      <p class="eyebrow">Crowd-sourced preference ordering</p>
+      <h1>Which song do you prefer?</h1>
+      <p class="intro">
+        Vote on a pair of songs. The shared Hasse diagram updates in real time
+        as people vote.
+      </p>
+    </header>
+
+    <section class="vote-card" aria-labelledby="question">
+      <p id="question" class="question">Choose the song you prefer:</p>
+
+      <div id="comparison" class="comparison">
+        <button id="song-a-button" class="song-button" type="button"></button>
+
+        <span class="versus" aria-hidden="true">VS</span>
+
+        <button id="song-b-button" class="song-button" type="button"></button>
+      </div>
+
+      <p id="vote-status" class="status" aria-live="polite">Connecting…</p>
+    </section>
+
+    <section class="diagram-card" aria-labelledby="diagram-title">
+      <div class="diagram-heading">
+        <div>
+          <h2 id="diagram-title">Live Hasse diagram</h2>
+          <p>
+            Higher nodes are preferred over lower nodes. A line means a direct
+            preference relation after removing transitive relations.
+          </p>
+        </div>
+
+        <div id="stats" class="stats">0 votes</div>
+      </div>
+
+      <div id="graph-container" class="graph-container">
+        <svg
+          id="hasse-diagram"
+          role="img"
+          aria-label="Live crowd-sourced song preference Hasse diagram"
+        ></svg>
+      </div>
+
+      <p class="diagram-note">
+        Pairwise majority preferences can form cycles. To keep a valid partial
+        order, the app accepts the strongest crowd-supported relations first
+        and excludes any relation that would create a cycle.
+      </p>
+    </section>
+  </main>
+
+  <footer>
+    <p>Built with Firebase Realtime Database and D3.js.</p>
+  </footer>
+
+  <script type="module" src="app.js"></script>
+</body>
+</html>

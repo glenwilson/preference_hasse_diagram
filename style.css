@@ -148,51 +148,90 @@ footer,
 .comparison-actions {
   display: flex;
   flex-wrap: wrap;
+  align-items: center;
   justify-content: center;
-  gap: 12px;
-  margin-top: 16px;
+  gap: 14px;
+  margin-top: 18px;
 }
 
-.secondary-button,
+.incomparable-button {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 64px;
+  padding: 12px 18px;
+  color: #374151;
+  background: #f8fafc;
+  border: 1px solid #cbd5e1;
+  border-radius: 12px;
+  cursor: pointer;
+  font: inherit;
+  text-align: left;
+  transition:
+    transform 140ms ease,
+    border-color 140ms ease,
+    background 140ms ease,
+    box-shadow 140ms ease;
+}
+
+.incomparable-button:hover:not(:disabled),
+.incomparable-button:focus-visible:not(:disabled) {
+  background: #eef2ff;
+  border-color: var(--primary);
+  box-shadow: 0 6px 16px rgb(79 70 229 / 12%);
+  outline: none;
+  transform: translateY(-1px);
+}
+
+.incomparable-button strong {
+  display: block;
+  margin-bottom: 2px;
+  color: var(--text);
+  font-size: 0.95rem;
+}
+
+.incomparable-button small {
+  display: block;
+  color: var(--muted);
+  font-size: 0.78rem;
+  line-height: 1.3;
+}
+
+.incomparable-icon {
+  display: grid;
+  width: 34px;
+  height: 34px;
+  place-items: center;
+  color: var(--primary-dark);
+  background: #e0e7ff;
+  border-radius: 50%;
+  font-size: 1.35rem;
+  font-weight: 800;
+}
+
 .text-button {
   min-height: 42px;
-  padding: 10px 15px;
+  padding: 10px 14px;
+  color: var(--muted);
+  background: transparent;
+  border: 1px solid transparent;
   border-radius: 10px;
   cursor: pointer;
   font: inherit;
   font-weight: 700;
 }
 
-.secondary-button {
-  color: var(--primary-dark);
-  background: var(--accent);
-  border: 1px solid #c7d2fe;
-}
-
-.secondary-button:hover:not(:disabled),
-.secondary-button:focus-visible:not(:disabled) {
-  background: #dfe5ff;
-  border-color: var(--primary);
-  outline: none;
-}
-
-.text-button {
-  color: var(--muted);
-  background: transparent;
-  border: 1px solid transparent;
-}
-
 .text-button:hover:not(:disabled),
 .text-button:focus-visible:not(:disabled) {
-  color: var(--text);
+  color: var(--primary-dark);
   background: #f3f4f6;
   outline: none;
 }
 
-.secondary-button:disabled,
+.incomparable-button:disabled,
 .text-button:disabled {
   cursor: not-allowed;
-  opacity: 0.55;
+  opacity: 0.5;
 }
 
 .comparison-help {

@@ -13,8 +13,7 @@ import {
 } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js";
 
 /*
-  Replace this object with Firebase Console → Project settings →
-  General → Your apps → Web app → SDK setup and configuration.
+  Replace with your Firebase Web App configuration.
 */
 const firebaseConfig = {
   apiKey: "AIzaSyAMIRDuWLWdBCUIVatW81gVV0lJREj1_OU", // Retrieve from Project Settings in the Firebase Console
@@ -25,7 +24,6 @@ const firebaseConfig = {
   messagingSenderId: "505355281934", // Filled with your Project Number
   appId: "1:505355281934:web:a4bc4c037181ee9996fe5f", // Retrieve from Project Settings in the Firebase Console
 };
-
 
 const songs = [
   { id: "blue-suede-shoes", title: "Blue Suede Shoes", artist: "Elvis Presley" },
@@ -44,8 +42,12 @@ const songById = new Map(songs.map((song) => [song.id, song]));
 
 const buttonA = document.querySelector("#song-a-button");
 const buttonB = document.querySelector("#song-b-button");
+const incomparableButton = document.querySelector("#incomparable-button");
+const skipButton = document.querySelector("#skip-button");
+
 const statusElement = document.querySelector("#vote-status");
 const statsElement = document.querySelector("#stats");
+const orderExplanationElement = document.querySelector("#order-explanation");
 const svg = d3.select("#hasse-diagram");
 
 let db;
@@ -54,24 +56,27 @@ let state = {};
 let activePair = null;
 let submitting = false;
 
-/* ---------- Firebase setup ---------- */
+/* ---------- Firebase ---------- */
 
 async function start() {
   try {
     const app = initializeApp(firebaseConfig);
     const auth = getAuth(app);
+
     db = getDatabase(app);
 
     const credential = await signInAnonymously(auth);
     uid = credential.user.uid;
 
-    status("Choose the song you prefer.");
+    status("Choose the response that fits you.");
     subscribeToVotes();
   } catch (error) {
     console.error(error);
+
     status(
-      "Unable to connect. Check your Firebase configuration and enabled Anonymous Authentication."
+      "Unable to connect. Check Firebase configuration and Anonymous Authentication."
     );
+
     setButtonsDisabled(true);
   }
 }
@@ -82,11 +87,11 @@ function subscribeToVotes() {
     (snapshot) => {
       state = snapshot.val() || {};
 
-      const alreadyVotedForActivePair =
+      const alreadyRespondedToCurrentPair =
         activePair && state.userVotes?.[uid]?.[activePair.key];
 
-      if (!activePair || alreadyVotedForActivePair) {
-        activePair = chooseNextPair();
+      if (!activePair || alreadyRespondedToCurrentPair) {
+        activePair = chooseNextPair(activePair?.key);
       }
 
       render();
@@ -98,7 +103,7 @@ function subscribeToVotes() {
   );
 }
 
-/* ---------- Pair selection and voting ---------- */
+/* ---------- Pair creation and selection ---------- */
 
 function makePair(song1, song2) {
   const [a, b] = [song1.id, song2.id].sort();
@@ -122,24 +127,39 @@ function allPossiblePairs() {
   return pairs;
 }
 
-function chooseNextPair() {
-  const voted = state.userVotes?.[uid] || {};
-  const pairs = allPossiblePairs().filter((pair) => !voted[pair.key]);
+function chooseNextPair(excludePairKey = null) {
+  const votedPairs = state.userVotes?.[uid] || {};
 
-  if (pairs.length === 0) return null;
+  let availablePairs = allPossiblePairs().filter(
+    (pair) => !votedPairs[pair.key] && pair.key !== excludePairKey
+  );
+
+  if (availablePairs.length === 0) {
+    availablePairs = allPossiblePairs().filter(
+      (pair) => !votedPairs[pair.key]
+    );
+  }
+
+  if (availablePairs.length === 0) return null;
 
   /*
-    Prefer pairs with the fewest total votes. This spreads crowd attention
-    across under-compared song pairs.
+    Prioritize pairs with fewer crowd responses. This helps distribute votes
+    more evenly across all available comparisons.
   */
-  const voteCount = (pair) => {
+  const responseCount = (pair) => {
     const data = state.pairs?.[pair.key];
-    return (data?.aWins || 0) + (data?.bWins || 0);
+
+    return (
+      (data?.aWins || 0) +
+      (data?.bWins || 0) +
+      (data?.incomparable || 0)
+    );
   };
 
-  const leastVotes = Math.min(...pairs.map(voteCount));
-  const leastComparedPairs = pairs.filter(
-    (pair) => voteCount(pair) === leastVotes
+  const fewestResponses = Math.min(...availablePairs.map(responseCount));
+
+  const leastComparedPairs = availablePairs.filter(
+    (pair) => responseCount(pair) === fewestResponses
   );
 
   return leastComparedPairs[
@@ -147,25 +167,27 @@ function chooseNextPair() {
   ];
 }
 
-async function submitVote(winnerId) {
+/* ---------- Voting ---------- */
+
+async function submitVote(choice) {
   if (!activePair || submitting) return;
 
   submitting = true;
   setButtonsDisabled(true);
-  status("Saving your vote…");
+  status("Saving your response…");
 
   const pair = activePair;
 
   try {
     const result = await runTransaction(ref(db), (currentData) => {
       const data = currentData || {};
+
       data.pairs = data.pairs || {};
       data.userVotes = data.userVotes || {};
       data.userVotes[uid] = data.userVotes[uid] || {};
 
       /*
-        This prevents ordinary duplicate votes by the same anonymous Firebase
-        account for a given song pair.
+        One non-skip response per anonymous Firebase account for a given pair.
       */
       if (data.userVotes[uid][pair.key]) {
         return;
@@ -176,94 +198,157 @@ async function submitVote(winnerId) {
         b: pair.b,
         aWins: 0,
         bWins: 0,
+        incomparable: 0,
       };
 
-      if (winnerId === pairData.a) {
-        pairData.aWins += 1;
+      if (choice === "incomparable") {
+        pairData.incomparable = (pairData.incomparable || 0) + 1;
+      } else if (choice === pairData.a) {
+        pairData.aWins = (pairData.aWins || 0) + 1;
+      } else if (choice === pairData.b) {
+        pairData.bWins = (pairData.bWins || 0) + 1;
       } else {
-        pairData.bWins += 1;
+        return;
       }
 
       data.pairs[pair.key] = pairData;
-      data.userVotes[uid][pair.key] = true;
+      data.userVotes[uid][pair.key] = choice;
 
       return data;
     });
 
     if (!result.committed) {
-      status("This pair was already recorded for this browser.");
+      status("You have already responded to this pair.");
     } else {
-      status("Vote saved. Loading another comparison…");
+      status("Response saved. Loading another comparison…");
     }
   } catch (error) {
     console.error(error);
-    status("Your vote could not be saved. Please try again.");
+    status("Your response could not be saved. Please try again.");
   } finally {
     submitting = false;
     setButtonsDisabled(false);
   }
 }
 
-/* ---------- Hasse diagram generation ---------- */
+function skipPair() {
+  if (submitting) return;
+
+  const previousPairKey = activePair?.key;
+  activePair = chooseNextPair(previousPairKey);
+
+  if (!activePair) {
+    status("You have responded to every available song pair.");
+  } else {
+    status("Pair skipped. Choose the response that fits you.");
+  }
+
+  renderComparison();
+}
+
+/* ---------- Partial-order construction ---------- */
 
 /*
-  Each majority result produces a candidate directed relation:
+  Each candidate relation has the form:
 
-      preferred song  →  less preferred song
+      preferred song → less preferred song
 
-  Crowd voting can create cycles, e.g. A > B, B > C, C > A.
-  A Hasse diagram must represent a partial order, so we sort relationships
-  by confidence and only accept one if it does not introduce a cycle.
+  A pair produces a candidate relation only when:
+    1. There are at least three total responses.
+    2. One directional preference has more votes than the other.
+    3. The winner receives more than 50% of ALL non-skip responses,
+       including "incomparable" responses.
+
+  Therefore, a large number of incomparable responses prevents a directional
+  relation from entering the crowd partial order.
 */
 function buildPartialOrder() {
   const pairData = Object.values(state.pairs || {});
   const candidates = [];
 
+  const minimumResponses = 3;
+  const requiredSupport = 0.5;
+
   for (const pair of pairData) {
     const aWins = pair.aWins || 0;
     const bWins = pair.bWins || 0;
+    const incomparable = pair.incomparable || 0;
 
+    const totalResponses = aWins + bWins + incomparable;
+
+    if (totalResponses < minimumResponses) continue;
     if (aWins === bWins) continue;
 
-    const total = aWins + bWins;
-    const margin = Math.abs(aWins - bWins);
+    const winner = aWins > bWins ? pair.a : pair.b;
+    const loser = aWins > bWins ? pair.b : pair.a;
+
+    const winnerVotes = Math.max(aWins, bWins);
+    const loserVotes = Math.min(aWins, bWins);
+    const support = winnerVotes / totalResponses;
+
+    if (support <= requiredSupport) continue;
 
     candidates.push({
-      from: aWins > bWins ? pair.a : pair.b,
-      to: aWins > bWins ? pair.b : pair.a,
-      total,
-      margin,
+      from: winner,
+      to: loser,
+      winnerVotes,
+      loserVotes,
+      incomparable,
+      totalResponses,
+      support,
 
       /*
-        Favors a strong majority with more than one vote while still allowing
-        the graph to begin forming immediately.
+        Higher confidence means a larger directional margin, greater support,
+        and more total responses.
       */
-      confidence: margin * Math.log2(total + 1),
+      confidence:
+        (winnerVotes - loserVotes) *
+        support *
+        Math.log2(totalResponses + 1),
     });
   }
 
+  /*
+    Stronger relationships are accepted first.
+
+    The last tie-breakers make the result deterministic even where two
+    candidate relations have identical scores.
+  */
   candidates.sort(
     (left, right) =>
       right.confidence - left.confidence ||
-      right.total - left.total ||
-      right.margin - left.margin
+      right.support - left.support ||
+      right.totalResponses - left.totalResponses ||
+      left.from.localeCompare(right.from) ||
+      left.to.localeCompare(right.to)
   );
 
   const adjacency = new Map(songs.map((song) => [song.id, new Set()]));
-  const accepted = [];
+  const acceptedRelations = [];
+  const cycleRejectedRelations = [];
 
   for (const edge of candidates) {
     /*
-      If there is already a path from edge.to to edge.from, adding
-      edge.from → edge.to would create a cycle.
+      Adding A → B would create a cycle precisely when B can already reach A.
+
+      Example:
+        A → B and B → C already exist.
+        Trying to add C → A creates A → B → C → A.
     */
-    if (!hasPath(adjacency, edge.to, edge.from)) {
-      adjacency.get(edge.from).add(edge.to);
-      accepted.push(edge);
+    if (hasPath(adjacency, edge.to, edge.from)) {
+      cycleRejectedRelations.push(edge);
+      continue;
     }
+
+    adjacency.get(edge.from).add(edge.to);
+    acceptedRelations.push(edge);
   }
 
-  return transitiveReduction(accepted);
+  return {
+    acceptedRelations,
+    cycleRejectedRelations,
+    hasseEdges: transitiveReduction(acceptedRelations),
+  };
 }
 
 function hasPath(adjacency, start, target) {
@@ -279,7 +364,9 @@ function hasPath(adjacency, start, target) {
     visited.add(node);
 
     for (const next of adjacency.get(node) || []) {
-      if (!visited.has(next)) stack.push(next);
+      if (!visited.has(next)) {
+        stack.push(next);
+      }
     }
   }
 
@@ -287,8 +374,10 @@ function hasPath(adjacency, start, target) {
 }
 
 /*
-  A Hasse diagram contains only cover edges. If A > B and B > C, then
-  A > C is implied and should not appear as an edge.
+  A Hasse diagram displays only cover relations.
+
+  If A > B and B > C, then A > C is transitive and is not drawn as a
+  separate edge.
 */
 function transitiveReduction(edges) {
   const adjacency = new Map(songs.map((song) => [song.id, new Set()]));
@@ -297,38 +386,42 @@ function transitiveReduction(edges) {
     adjacency.get(edge.from).add(edge.to);
   }
 
-  const reduced = [];
+  const reducedEdges = [];
 
   for (const edge of edges) {
     adjacency.get(edge.from).delete(edge.to);
 
-    const isImpliedByAnotherPath = hasPath(adjacency, edge.from, edge.to);
+    const impliedByAnotherPath = hasPath(adjacency, edge.from, edge.to);
 
-    if (isImpliedByAnotherPath) {
-      continue;
+    if (!impliedByAnotherPath) {
+      adjacency.get(edge.from).add(edge.to);
+      reducedEdges.push(edge);
     }
-
-    adjacency.get(edge.from).add(edge.to);
-    reduced.push(edge);
   }
 
-  return reduced;
+  return reducedEdges;
 }
 
-/* ---------- D3 rendering ---------- */
+/* ---------- Rendering ---------- */
 
 function render() {
   renderComparison();
   renderStats();
-  renderDiagram(buildPartialOrder());
+
+  const order = buildPartialOrder();
+
+  renderDiagram(order.hasseEdges);
+  renderOrderExplanation(order);
 }
 
 function renderComparison() {
   if (!activePair) {
     buttonA.innerHTML = "<span class='song-title'>All pairs completed</span>";
     buttonB.innerHTML = "<span class='song-title'>Thank you!</span>";
+
     setButtonsDisabled(true);
-    status("You have voted on every available song pair.");
+
+    status("You have responded to every available song pair.");
     return;
   }
 
@@ -340,6 +433,8 @@ function renderComparison() {
 
   buttonA.onclick = () => submitVote(songA.id);
   buttonB.onclick = () => submitVote(songB.id);
+  incomparableButton.onclick = () => submitVote("incomparable");
+  skipButton.onclick = skipPair;
 
   setButtonsDisabled(submitting);
 }
@@ -353,18 +448,91 @@ function songButtonMarkup(song) {
 
 function renderStats() {
   const pairs = Object.values(state.pairs || {});
-  const totalVotes = pairs.reduce(
+
+  const directionalVotes = pairs.reduce(
     (sum, pair) => sum + (pair.aWins || 0) + (pair.bWins || 0),
     0
   );
 
-  const comparedPairs = pairs.filter(
-    (pair) => (pair.aWins || 0) + (pair.bWins || 0) > 0
-  ).length;
+  const incomparableVotes = pairs.reduce(
+    (sum, pair) => sum + (pair.incomparable || 0),
+    0
+  );
 
-  statsElement.textContent = `${totalVotes} vote${
-    totalVotes === 1 ? "" : "s"
-  } · ${comparedPairs} compared pair${comparedPairs === 1 ? "" : "s"}`;
+  const totalResponses = directionalVotes + incomparableVotes;
+
+  statsElement.textContent =
+    `${totalResponses} response${totalResponses === 1 ? "" : "s"} · ` +
+    `${incomparableVotes} incomparable`;
+}
+
+function renderOrderExplanation(order) {
+  const acceptedCount = order.acceptedRelations.length;
+  const rejected = order.cycleRejectedRelations;
+
+  let html = `
+    <strong>How the crowd partial order is formed</strong>
+
+    <p>
+      A directional relation is considered only after at least three responses
+      for a pair, and only when one song receives more than 50% of all
+      responses for that pair. “Incomparable” responses count in that total,
+      so they can prevent either direction from being accepted.
+    </p>
+
+    <p>
+      There ${acceptedCount === 1 ? "is" : "are"} currently
+      <strong>${acceptedCount}</strong> accepted crowd-supported
+      relation${acceptedCount === 1 ? "" : "s"}.
+    </p>
+  `;
+
+  if (rejected.length === 0) {
+    html += `
+      <p>
+        No candidate relations currently conflict with the displayed order.
+      </p>
+    `;
+  } else {
+    html += `
+      <p>
+        <strong>${rejected.length}</strong> weaker crowd-supported
+        relation${rejected.length === 1 ? "" : "s"} ${
+          rejected.length === 1 ? "was" : "were"
+        } excluded because ${
+          rejected.length === 1 ? "it would" : "they would"
+        } create a cycle.
+      </p>
+
+      <ul>
+        ${rejected
+          .map((edge) => {
+            const preferred = songById.get(edge.from);
+            const lessPreferred = songById.get(edge.to);
+
+            return `
+              <li>
+                ${escapeHtml(preferred.title)} &gt;
+                ${escapeHtml(lessPreferred.title)}
+                was excluded because it conflicts with stronger accepted
+                relationships.
+              </li>
+            `;
+          })
+          .join("")}
+      </ul>
+    `;
+  }
+
+  html += `
+    <p>
+      The visible graph is a <em>Hasse diagram</em>, so it removes transitive
+      edges. If A &gt; B and B &gt; C, the implied relation A &gt; C is not
+      shown as an additional line.
+    </p>
+  `;
+
+  orderExplanationElement.innerHTML = html;
 }
 
 function renderDiagram(edges) {
@@ -384,6 +552,7 @@ function renderDiagram(edges) {
       .attr("y", height / 2)
       .attr("text-anchor", "middle")
       .text("Vote on song pairs to begin building the preference order.");
+
     return;
   }
 
@@ -465,7 +634,9 @@ function layoutGraph(edges, width) {
       rank.set(next, Math.max(rank.get(next), rank.get(current) + 1));
       inDegree.set(next, inDegree.get(next) - 1);
 
-      if (inDegree.get(next) === 0) queue.push(next);
+      if (inDegree.get(next) === 0) {
+        queue.push(next);
+      }
     }
   }
 
@@ -498,6 +669,8 @@ function layoutGraph(edges, width) {
 function setButtonsDisabled(disabled) {
   buttonA.disabled = disabled;
   buttonB.disabled = disabled;
+  incomparableButton.disabled = disabled;
+  skipButton.disabled = disabled;
 }
 
 function status(message) {

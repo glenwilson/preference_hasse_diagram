@@ -33,21 +33,29 @@
         <button id="song-b-button" class="song-button" type="button"></button>
       </div>
 
-      <div class="comparison-actions">
-        <button id="incomparable-button" class="secondary-button" type="button">
-          Neither — incomparable to me
-        </button>
+<div class="comparison-actions">
+  <button
+    id="incomparable-button"
+    class="incomparable-button"
+    type="button"
+  >
+    <span class="incomparable-icon" aria-hidden="true">↮</span>
+    <span>
+      <strong>Incomparable</strong>
+      <small>Neither song is better, in my view</small>
+    </span>
+  </button>
 
-        <button id="skip-button" class="text-button" type="button">
-          Skip this pair
-        </button>
-      </div>
+  <button id="skip-button" class="text-button" type="button">
+    Skip this comparison →
+  </button>
+</div>
 
-      <p class="comparison-help">
-        “Incomparable” records that neither song is better than the other in
-        your view. “Skip” records no opinion and shows another pair.
-      </p>
-
+<p class="comparison-help">
+  Choose <strong>Incomparable</strong> if these songs cannot meaningfully be
+  ordered by your preferences. Skip records no response.
+</p>
+      
       <p id="vote-status" class="status" aria-live="polite">Connecting…</p>
     </section>
 

@@ -15,13 +15,12 @@ import {
 const firebaseConfig = {
   apiKey: "AIzaSyAMIRDuWLWdBCUIVatW81gVV0lJREj1_OU",
   authDomain: "preference-hasse-diagram.firebaseapp.com",
-  databaseURL: "https://preference-hasse-diagram-default-rtdb.firebaseio.com",
   projectId: "preference-hasse-diagram",
   storageBucket: "preference-hasse-diagram.firebasestorage.app",
   messagingSenderId: "505355281934",
   appId: "1:505355281934:web:a4bc4c037181ee9996fe5f",
+  measurementId: "G-DNWRM2EYVR"
 };
-
 const songs = [
   { id: "blue-suede-shoes", title: "Blue Suede Shoes", artist: "Elvis Presley" },
   { id: "thunderstruck", title: "Thunderstruck", artist: "AC/DC" },

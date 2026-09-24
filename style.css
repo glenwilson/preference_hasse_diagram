@@ -25,13 +25,13 @@ body {
 }
 
 .page {
-  width: min(1120px, calc(100% - 32px));
+  width: min(1180px, calc(100% - 32px));
   margin: 0 auto;
-  padding: 56px 0 32px;
+  padding: 52px 0 32px;
 }
 
 header {
-  max-width: 720px;
+  max-width: 780px;
   margin-bottom: 28px;
 }
 
@@ -53,7 +53,7 @@ p {
 h1 {
   margin-bottom: 12px;
   font-size: clamp(2rem, 4vw, 3.4rem);
-  line-height: 1.04;
+  line-height: 1.06;
 }
 
 h2 {
@@ -63,9 +63,8 @@ h2 {
 
 .intro,
 .diagram-heading p,
-.diagram-note,
-footer,
-.status {
+.status,
+footer {
   color: var(--muted);
   line-height: 1.55;
 }
@@ -83,7 +82,7 @@ footer,
 .question {
   margin-bottom: 18px;
   font-size: 1.05rem;
-  font-weight: 700;
+  font-weight: 750;
 }
 
 .comparison {
@@ -255,7 +254,7 @@ footer,
 }
 
 .diagram-heading p {
-  max-width: 680px;
+  max-width: 720px;
   margin-bottom: 0;
 }
 
@@ -271,7 +270,7 @@ footer,
 }
 
 .graph-container {
-  min-height: 400px;
+  min-height: 510px;
   margin-top: 24px;
   overflow-x: auto;
   border: 1px solid #e8ebf2;
@@ -284,33 +283,8 @@ footer,
 #hasse-diagram {
   display: block;
   width: 100%;
-  min-width: 760px;
-  min-height: 400px;
-}
-
-.diagram-note {
-  margin: 18px 0 0;
-  font-size: 0.9rem;
-}
-
-.order-explanation {
-  margin-top: 18px;
-  padding: 16px;
-  color: #374151;
-  background: #f8fafc;
-  border: 1px solid #e2e8f0;
-  border-radius: 12px;
-  font-size: 0.9rem;
-  line-height: 1.55;
-}
-
-.order-explanation p:last-child {
-  margin-bottom: 0;
-}
-
-.order-explanation ul {
-  margin: 8px 0 0;
-  padding-left: 20px;
+  min-width: 1180px;
+  min-height: 500px;
 }
 
 .node-circle {
@@ -343,10 +317,31 @@ footer,
   font-weight: 650;
 }
 
+.order-explanation {
+  margin-top: 18px;
+  padding: 16px;
+  color: #374151;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  font-size: 0.9rem;
+  line-height: 1.55;
+}
+
+.order-explanation p:last-child {
+  margin-bottom: 0;
+}
+
+.order-explanation ul {
+  margin: 8px 0 0;
+  padding-left: 20px;
+}
+
 footer {
-  width: min(1120px, calc(100% - 32px));
+  width: min(1180px, calc(100% - 32px));
   margin: 0 auto;
   padding: 8px 0 36px;
+  color: var(--muted);
   font-size: 0.85rem;
   text-align: center;
 }

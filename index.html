@@ -23,7 +23,7 @@
     </header>
 
     <section class="vote-card" aria-labelledby="question">
-      <p id="question" class="question">Choose the song you prefer:</p>
+      <p id="question" class="question">Choose the response that fits you:</p>
 
       <div id="comparison" class="comparison">
         <button id="song-a-button" class="song-button" type="button"></button>
@@ -33,6 +33,21 @@
         <button id="song-b-button" class="song-button" type="button"></button>
       </div>
 
+      <div class="comparison-actions">
+        <button id="incomparable-button" class="secondary-button" type="button">
+          Neither — incomparable to me
+        </button>
+
+        <button id="skip-button" class="text-button" type="button">
+          Skip this pair
+        </button>
+      </div>
+
+      <p class="comparison-help">
+        “Incomparable” records that neither song is better than the other in
+        your view. “Skip” records no opinion and shows another pair.
+      </p>
+
       <p id="vote-status" class="status" aria-live="polite">Connecting…</p>
     </section>
 
@@ -41,12 +56,12 @@
         <div>
           <h2 id="diagram-title">Live Hasse diagram</h2>
           <p>
-            Higher nodes are preferred over lower nodes. A line means a direct
-            preference relation after removing transitive relations.
+            Higher nodes are preferred over lower nodes. Lines show only direct
+            preference relations; implied transitive relations are omitted.
           </p>
         </div>
 
-        <div id="stats" class="stats">0 votes</div>
+        <div id="stats" class="stats">0 responses</div>
       </div>
 
       <div id="graph-container" class="graph-container">
@@ -58,10 +73,12 @@
       </div>
 
       <p class="diagram-note">
-        Pairwise majority preferences can form cycles. To keep a valid partial
-        order, the app accepts the strongest crowd-supported relations first
-        and excludes any relation that would create a cycle.
+        A relation is displayed only when the crowd gives sufficient support to
+        one directional preference. “Incomparable” responses can prevent a
+        relation from appearing.
       </p>
+
+      <div id="order-explanation" class="order-explanation"></div>
     </section>
   </main>
 

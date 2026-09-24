@@ -35,7 +35,9 @@ const songs = [
   { id: "smells-like-teen-spirit", title: "Smells Like Teen Spirit", artist: "Nirvana" },
   { id: "hey-jude", title: "Hey Jude", artist: "The Beatles" },
   { id: "purple-rain", title: "Purple Rain", artist: "Prince" },
-  { id: "dreams", title: "Dreams", artist: "Fleetwood Mac" },
+  { id: "bethoven", title: "Bethoven's Fifth Symphony", artist: "The New York Philharmonic"},
+  { id: "bach", title: "Toccata and Fugue in D Minor, BWV 565", artist: "Simon Preston"},
+  { id: "klatremus", title: "Klatremusvise", artist: "Thorbjørn Egner"},
 ];
 
 const songById = new Map(songs.map((song) => [song.id, song]));

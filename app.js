@@ -17,14 +17,15 @@ import {
   General → Your apps → Web app → SDK setup and configuration.
 */
 const firebaseConfig = {
-  apiKey: "REPLACE_ME",
-  authDomain: "REPLACE_ME.firebaseapp.com",
-  databaseURL: "https://REPLACE_ME-default-rtdb.firebaseio.com",
-  projectId: "REPLACE_ME",
-  storageBucket: "REPLACE_ME.appspot.com",
-  messagingSenderId: "REPLACE_ME",
-  appId: "REPLACE_ME",
+  apiKey: "AIzaSyAMIRDuWLWdBCUIVatW81gVV0lJREj1_OU", // Retrieve from Project Settings in the Firebase Console
+  authDomain: "preference-hasse-diagram.firebaseapp.com",
+  databaseURL: "https://preference-hasse-diagram-default-rtdb.firebaseio.com",
+  projectId: "preference-hasse-diagram",
+  storageBucket: "preference-hasse-diagram.firebasestorage.app",
+  messagingSenderId: "505355281934", // Filled with your Project Number
+  appId: "1:505355281934:web:a4bc4c037181ee9996fe5f", // Retrieve from Project Settings in the Firebase Console
 };
+
 
 const songs = [
   { id: "blue-suede-shoes", title: "Blue Suede Shoes", artist: "Elvis Presley" },

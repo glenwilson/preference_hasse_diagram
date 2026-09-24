@@ -221,10 +221,23 @@ async function submitVote(choice) {
 
 if (!result.committed) {
   status("You have already responded to this pair.");
-} else if (choice === "incomparable") {
-  status("Recorded: these songs are incomparable to you. Loading another pair…");
 } else {
-  status("Preference recorded. Loading another comparison…");
+  /*
+    Update this browser immediately using Firebase's transaction result.
+    The normal onValue listener will also update every connected browser.
+  */
+  state = result.snapshot.val() || state;
+  activePair = chooseNextPair(pair.key);
+
+  if (choice === "incomparable") {
+    status(
+      "Recorded: these songs are incomparable to you. Loading another pair…"
+    );
+  } else {
+    status("Preference recorded. Loading another comparison…");
+  }
+
+  render();
 }
   } catch (error) {
     console.error(error);
@@ -270,7 +283,7 @@ function buildPartialOrder() {
   const pairData = Object.values(state.pairs || {});
   const candidates = [];
 
-  const minimumResponses = 3;
+  const minimumResponses = 1;
   const requiredSupport = 0.5;
 
   for (const pair of pairData) {

@@ -490,13 +490,9 @@ function renderOrderExplanation(order) {
   let html = `
     <strong>How the crowd partial order is formed</strong>
 
-    <p>
-      A directional relation is considered only after at least three responses
-      for a pair, and only when one song receives more than 50% of all
-      responses for that pair. “Incomparable” responses count in that total,
-      so they can prevent either direction from being accepted.
-    </p>
-
+A directional relation is considered as soon as there is a directional
+response, but it remains visible only when one song receives more than
+50% of all responses for that pair.
     <p>
       There ${acceptedCount === 1 ? "is" : "are"} currently
       <strong>${acceptedCount}</strong> accepted crowd-supported

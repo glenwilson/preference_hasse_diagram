@@ -12,17 +12,14 @@ import {
   runTransaction,
 } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js";
 
-/*
-  Replace with your Firebase Web App configuration.
-*/
 const firebaseConfig = {
-  apiKey: "AIzaSyAMIRDuWLWdBCUIVatW81gVV0lJREj1_OU", // Retrieve from Project Settings in the Firebase Console
+  apiKey: "AIzaSyAMIRDuWLWdBCUIVatW81gVV0lJREj1_OU",
   authDomain: "preference-hasse-diagram.firebaseapp.com",
   databaseURL: "https://preference-hasse-diagram-default-rtdb.firebaseio.com",
   projectId: "preference-hasse-diagram",
   storageBucket: "preference-hasse-diagram.firebasestorage.app",
-  messagingSenderId: "505355281934", // Filled with your Project Number
-  appId: "1:505355281934:web:a4bc4c037181ee9996fe5f", // Retrieve from Project Settings in the Firebase Console
+  messagingSenderId: "505355281934",
+  appId: "1:505355281934:web:a4bc4c037181ee9996fe5f",
 };
 
 const songs = [
@@ -35,9 +32,21 @@ const songs = [
   { id: "smells-like-teen-spirit", title: "Smells Like Teen Spirit", artist: "Nirvana" },
   { id: "hey-jude", title: "Hey Jude", artist: "The Beatles" },
   { id: "purple-rain", title: "Purple Rain", artist: "Prince" },
-  { id: "bethoven", title: "Bethoven's Fifth Symphony", artist: "The New York Philharmonic"},
-  { id: "bach", title: "Toccata and Fugue in D Minor, BWV 565", artist: "Simon Preston"},
-  { id: "klatremus", title: "Klatremusvise", artist: "Thorbjørn Egner"},
+  {
+    id: "bethoven",
+    title: "Bethoven's Fifth Symphony",
+    artist: "The New York Philharmonic",
+  },
+  {
+    id: "bach",
+    title: "Toccata and Fugue in D Minor, BWV 565",
+    artist: "Simon Preston",
+  },
+  {
+    id: "klatremus",
+    title: "Klatremusvise",
+    artist: "Thorbjørn Egner",
+  },
 ];
 
 const songById = new Map(songs.map((song) => [song.id, song]));
@@ -46,69 +55,75 @@ const buttonA = document.querySelector("#song-a-button");
 const buttonB = document.querySelector("#song-b-button");
 const incomparableButton = document.querySelector("#incomparable-button");
 const skipButton = document.querySelector("#skip-button");
-
 const statusElement = document.querySelector("#vote-status");
 const statsElement = document.querySelector("#stats");
-const orderExplanationElement = document.querySelector("#order-explanation");
+const explanationElement = document.querySelector("#order-explanation");
 const svg = d3.select("#hasse-diagram");
 
-let db;
-let uid;
+let db = null;
+let uid = null;
 let state = {};
 let activePair = null;
 let submitting = false;
 
-/* ---------- Firebase ---------- */
+/*
+  Render immediately, before Firebase has connected. This guarantees that
+  all songs always appear in the diagram.
+*/
+activePair = randomPair();
+render();
+connectFirebase();
 
-async function start() {
+/* ------------------------------------------------------------------ */
+/* Firebase                                                           */
+/* ------------------------------------------------------------------ */
+
+async function connectFirebase() {
   try {
     const app = initializeApp(firebaseConfig);
     const auth = getAuth(app);
-
     db = getDatabase(app);
 
     const credential = await signInAnonymously(auth);
     uid = credential.user.uid;
 
-    status("Choose the response that fits you.");
-    subscribeToVotes();
+    status("Connected. Choose the response that fits you.");
+
+    onValue(
+      ref(db),
+      (snapshot) => {
+        state = snapshot.val() || {};
+
+        const userVotes = state.userVotes?.[uid] || {};
+
+        if (!activePair || userVotes[activePair.key]) {
+          activePair = chooseNextUnansweredPair(activePair?.key);
+        }
+
+        render();
+      },
+      (error) => {
+        console.error("Realtime Database read error:", error);
+        status("Connected, but live vote data could not be read.");
+      }
+    );
   } catch (error) {
-    console.error(error);
+    console.error("Firebase connection error:", error);
 
     status(
-      "Unable to connect. Check Firebase configuration and Anonymous Authentication."
+      "Could not connect to Firebase. Songs are visible, but voting is unavailable."
     );
 
     setButtonsDisabled(true);
   }
 }
 
-function subscribeToVotes() {
-  onValue(
-    ref(db),
-    (snapshot) => {
-      state = snapshot.val() || {};
+/* ------------------------------------------------------------------ */
+/* Pair selection                                                     */
+/* ------------------------------------------------------------------ */
 
-      const alreadyRespondedToCurrentPair =
-        activePair && state.userVotes?.[uid]?.[activePair.key];
-
-      if (!activePair || alreadyRespondedToCurrentPair) {
-        activePair = chooseNextPair(activePair?.key);
-      }
-
-      render();
-    },
-    (error) => {
-      console.error(error);
-      status("Could not read live voting data.");
-    }
-  );
-}
-
-/* ---------- Pair creation and selection ---------- */
-
-function makePair(song1, song2) {
-  const [a, b] = [song1.id, song2.id].sort();
+function makePair(songOne, songTwo) {
+  const [a, b] = [songOne.id, songTwo.id].sort();
 
   return {
     key: `${a}__${b}`,
@@ -117,7 +132,7 @@ function makePair(song1, song2) {
   };
 }
 
-function allPossiblePairs() {
+function allPairs() {
   const pairs = [];
 
   for (let i = 0; i < songs.length; i += 1) {
@@ -129,50 +144,51 @@ function allPossiblePairs() {
   return pairs;
 }
 
-function chooseNextPair(excludePairKey = null) {
-  const votedPairs = state.userVotes?.[uid] || {};
+function randomPair() {
+  const pairs = allPairs();
+  return pairs[Math.floor(Math.random() * pairs.length)];
+}
 
-  let availablePairs = allPossiblePairs().filter(
-    (pair) => !votedPairs[pair.key] && pair.key !== excludePairKey
+function responseCount(pair) {
+  const pairData = state.pairs?.[pair.key] || {};
+
+  return (
+    (pairData.aWins || 0) +
+    (pairData.bWins || 0) +
+    (pairData.incomparable || 0)
+  );
+}
+
+function chooseNextUnansweredPair(excludeKey = null) {
+  if (!uid) return randomPair();
+
+  const userVotes = state.userVotes?.[uid] || {};
+
+  let available = allPairs().filter(
+    (pair) => !userVotes[pair.key] && pair.key !== excludeKey
   );
 
-  if (availablePairs.length === 0) {
-    availablePairs = allPossiblePairs().filter(
-      (pair) => !votedPairs[pair.key]
-    );
+  if (available.length === 0) {
+    available = allPairs().filter((pair) => !userVotes[pair.key]);
   }
 
-  if (availablePairs.length === 0) return null;
+  if (available.length === 0) return null;
 
-  /*
-    Prioritize pairs with fewer crowd responses. This helps distribute votes
-    more evenly across all available comparisons.
-  */
-  const responseCount = (pair) => {
-    const data = state.pairs?.[pair.key];
+  const fewestResponses = Math.min(...available.map(responseCount));
 
-    return (
-      (data?.aWins || 0) +
-      (data?.bWins || 0) +
-      (data?.incomparable || 0)
-    );
-  };
-
-  const fewestResponses = Math.min(...availablePairs.map(responseCount));
-
-  const leastComparedPairs = availablePairs.filter(
+  const leastCompared = available.filter(
     (pair) => responseCount(pair) === fewestResponses
   );
 
-  return leastComparedPairs[
-    Math.floor(Math.random() * leastComparedPairs.length)
-  ];
+  return leastCompared[Math.floor(Math.random() * leastCompared.length)];
 }
 
-/* ---------- Voting ---------- */
+/* ------------------------------------------------------------------ */
+/* Voting                                                             */
+/* ------------------------------------------------------------------ */
 
 async function submitVote(choice) {
-  if (!activePair || submitting) return;
+  if (!db || !uid || !activePair || submitting) return;
 
   submitting = true;
   setButtonsDisabled(true);
@@ -189,7 +205,8 @@ async function submitVote(choice) {
       data.userVotes[uid] = data.userVotes[uid] || {};
 
       /*
-        One non-skip response per anonymous Firebase account for a given pair.
+        Only one meaningful response per anonymous account per pair.
+        Skip is not stored and does not call this function.
       */
       if (data.userVotes[uid][pair.key]) {
         return;
@@ -203,12 +220,12 @@ async function submitVote(choice) {
         incomparable: 0,
       };
 
-      if (choice === "incomparable") {
-        pairData.incomparable = (pairData.incomparable || 0) + 1;
-      } else if (choice === pairData.a) {
+      if (choice === pair.a) {
         pairData.aWins = (pairData.aWins || 0) + 1;
-      } else if (choice === pairData.b) {
+      } else if (choice === pair.b) {
         pairData.bWins = (pairData.bWins || 0) + 1;
+      } else if (choice === "incomparable") {
+        pairData.incomparable = (pairData.incomparable || 0) + 1;
       } else {
         return;
       }
@@ -219,29 +236,28 @@ async function submitVote(choice) {
       return data;
     });
 
-if (!result.committed) {
-  status("You have already responded to this pair.");
-} else {
-  /*
-    Update this browser immediately using Firebase's transaction result.
-    The normal onValue listener will also update every connected browser.
-  */
-  state = result.snapshot.val() || state;
-  activePair = chooseNextPair(pair.key);
+    if (!result.committed) {
+      status("You have already responded to this pair.");
+      return;
+    }
 
-  if (choice === "incomparable") {
-    status(
-      "Recorded: these songs are incomparable to you. Loading another pair…"
-    );
-  } else {
-    status("Preference recorded. Loading another comparison…");
-  }
+    /*
+      Update the local page immediately. The Firebase onValue listener will
+      also update every other open browser in real time.
+    */
+    state = result.snapshot.val() || state;
+    activePair = chooseNextUnansweredPair(pair.key);
 
-  render();
-}
+    if (choice === "incomparable") {
+      status("Recorded as incomparable. Loading another comparison…");
+    } else {
+      status("Preference recorded. Loading another comparison…");
+    }
+
+    render();
   } catch (error) {
-    console.error(error);
-    status("Your response could not be saved. Please try again.");
+    console.error("Vote write error:", error);
+    status("Could not save your response. Check Firebase rules.");
   } finally {
     submitting = false;
     setButtonsDisabled(false);
@@ -251,11 +267,10 @@ if (!result.committed) {
 function skipPair() {
   if (submitting) return;
 
-  const previousPairKey = activePair?.key;
-  activePair = chooseNextPair(previousPairKey);
+  activePair = chooseNextUnansweredPair(activePair?.key);
 
   if (!activePair) {
-    status("You have responded to every available song pair.");
+    status("You have answered every available song pair.");
   } else {
     status("Pair skipped. Choose the response that fits you.");
   }
@@ -263,108 +278,93 @@ function skipPair() {
   renderComparison();
 }
 
-/* ---------- Partial-order construction ---------- */
+/* ------------------------------------------------------------------ */
+/* Partial order and Hasse diagram                                    */
+/* ------------------------------------------------------------------ */
 
 /*
-  Each candidate relation has the form:
+  A pair contributes a directional candidate edge only when:
+  - one direction has more votes than the other direction; and
+  - that winning direction has more than 50% of all responses,
+    including incomparable responses.
 
-      preferred song → less preferred song
+  Example:
+    A > B: 3 votes
+    B > A: 0 votes
+    Incomparable: 4 votes
 
-  A pair produces a candidate relation only when:
-    1. There are at least three total responses.
-    2. One directional preference has more votes than the other.
-    3. The winner receives more than 50% of ALL non-skip responses,
-       including "incomparable" responses.
-
-  Therefore, a large number of incomparable responses prevents a directional
-  relation from entering the crowd partial order.
+  A > B has only 3 / 7 = 42.9% support, so no relation is displayed.
 */
 function buildPartialOrder() {
-  const pairData = Object.values(state.pairs || {});
   const candidates = [];
 
-  const minimumResponses = 1;
-  const requiredSupport = 0.5;
-
-  for (const pair of pairData) {
+  for (const pair of Object.values(state.pairs || {})) {
     const aWins = pair.aWins || 0;
     const bWins = pair.bWins || 0;
     const incomparable = pair.incomparable || 0;
+    const total = aWins + bWins + incomparable;
 
-    const totalResponses = aWins + bWins + incomparable;
+    if (total === 0 || aWins === bWins) continue;
 
-    if (totalResponses < minimumResponses) continue;
-    if (aWins === bWins) continue;
-
-    const winner = aWins > bWins ? pair.a : pair.b;
-    const loser = aWins > bWins ? pair.b : pair.a;
-
+    const from = aWins > bWins ? pair.a : pair.b;
+    const to = aWins > bWins ? pair.b : pair.a;
     const winnerVotes = Math.max(aWins, bWins);
     const loserVotes = Math.min(aWins, bWins);
-    const support = winnerVotes / totalResponses;
+    const support = winnerVotes / total;
 
-    if (support <= requiredSupport) continue;
+    /*
+      Require strictly more than half of all recorded responses.
+      This allows immediate diagram changes after one directional vote.
+    */
+    if (support <= 0.5) continue;
 
     candidates.push({
-      from: winner,
-      to: loser,
+      from,
+      to,
+      support,
+      total,
       winnerVotes,
       loserVotes,
       incomparable,
-      totalResponses,
-      support,
-
-      /*
-        Higher confidence means a larger directional margin, greater support,
-        and more total responses.
-      */
       confidence:
-        (winnerVotes - loserVotes) *
-        support *
-        Math.log2(totalResponses + 1),
+        (winnerVotes - loserVotes) * support * Math.log2(total + 1),
     });
   }
 
   /*
-    Stronger relationships are accepted first.
-
-    The last tie-breakers make the result deterministic even where two
-    candidate relations have identical scores.
+    Stronger relations are accepted first. This makes cycle handling
+    deterministic and visible in the explanation below the diagram.
   */
   candidates.sort(
     (left, right) =>
       right.confidence - left.confidence ||
       right.support - left.support ||
-      right.totalResponses - left.totalResponses ||
+      right.total - left.total ||
       left.from.localeCompare(right.from) ||
       left.to.localeCompare(right.to)
   );
 
   const adjacency = new Map(songs.map((song) => [song.id, new Set()]));
-  const acceptedRelations = [];
-  const cycleRejectedRelations = [];
+  const accepted = [];
+  const cycleRejected = [];
 
   for (const edge of candidates) {
     /*
-      Adding A → B would create a cycle precisely when B can already reach A.
-
-      Example:
-        A → B and B → C already exist.
-        Trying to add C → A creates A → B → C → A.
+      Adding A -> B creates a cycle exactly when a path B -> ... -> A
+      already exists among accepted relations.
     */
     if (hasPath(adjacency, edge.to, edge.from)) {
-      cycleRejectedRelations.push(edge);
-      continue;
+      cycleRejected.push(edge);
+    } else {
+      adjacency.get(edge.from).add(edge.to);
+      accepted.push(edge);
     }
-
-    adjacency.get(edge.from).add(edge.to);
-    acceptedRelations.push(edge);
   }
 
   return {
-    acceptedRelations,
-    cycleRejectedRelations,
-    hasseEdges: transitiveReduction(acceptedRelations),
+    accepted,
+    cycleRejected,
+    hasseEdges: transitiveReduction(accepted),
   };
 }
 
@@ -373,14 +373,14 @@ function hasPath(adjacency, start, target) {
   const visited = new Set();
 
   while (stack.length > 0) {
-    const node = stack.pop();
+    const current = stack.pop();
 
-    if (node === target) return true;
-    if (visited.has(node)) continue;
+    if (current === target) return true;
+    if (visited.has(current)) continue;
 
-    visited.add(node);
+    visited.add(current);
 
-    for (const next of adjacency.get(node) || []) {
+    for (const next of adjacency.get(current) || []) {
       if (!visited.has(next)) {
         stack.push(next);
       }
@@ -391,10 +391,10 @@ function hasPath(adjacency, start, target) {
 }
 
 /*
-  A Hasse diagram displays only cover relations.
+  Remove transitive edges from the accepted acyclic relation graph.
 
-  If A > B and B > C, then A > C is transitive and is not drawn as a
-  separate edge.
+  If A > B and B > C, then A > C is implied and is omitted from the
+  Hasse diagram.
 */
 function transitiveReduction(edges) {
   const adjacency = new Map(songs.map((song) => [song.id, new Set()]));
@@ -403,60 +403,58 @@ function transitiveReduction(edges) {
     adjacency.get(edge.from).add(edge.to);
   }
 
-  const reducedEdges = [];
+  const result = [];
 
   for (const edge of edges) {
     adjacency.get(edge.from).delete(edge.to);
 
-    const impliedByAnotherPath = hasPath(adjacency, edge.from, edge.to);
+    const isTransitive = hasPath(adjacency, edge.from, edge.to);
 
-    if (!impliedByAnotherPath) {
+    if (!isTransitive) {
       adjacency.get(edge.from).add(edge.to);
-      reducedEdges.push(edge);
+      result.push(edge);
     }
   }
 
-  return reducedEdges;
+  return result;
 }
 
-/* ---------- Rendering ---------- */
+/* ------------------------------------------------------------------ */
+/* Rendering                                                          */
+/* ------------------------------------------------------------------ */
 
 function render() {
   renderComparison();
   renderStats();
 
   const order = buildPartialOrder();
-
   renderDiagram(order.hasseEdges);
-  renderOrderExplanation(order);
+  renderExplanation(order);
 }
 
 function renderComparison() {
   if (!activePair) {
-    buttonA.innerHTML = "<span class='song-title'>All pairs completed</span>";
-    buttonB.innerHTML = "<span class='song-title'>Thank you!</span>";
-
+    buttonA.innerHTML = `<span class="song-title">All pairs answered</span>`;
+    buttonB.innerHTML = `<span class="song-title">Thank you!</span>`;
     setButtonsDisabled(true);
-
-    status("You have responded to every available song pair.");
     return;
   }
 
   const songA = songById.get(activePair.a);
   const songB = songById.get(activePair.b);
 
-  buttonA.innerHTML = songButtonMarkup(songA);
-  buttonB.innerHTML = songButtonMarkup(songB);
+  buttonA.innerHTML = songMarkup(songA);
+  buttonB.innerHTML = songMarkup(songB);
 
   buttonA.onclick = () => submitVote(songA.id);
   buttonB.onclick = () => submitVote(songB.id);
   incomparableButton.onclick = () => submitVote("incomparable");
   skipButton.onclick = skipPair;
 
-  setButtonsDisabled(submitting);
+  setButtonsDisabled(submitting || !db || !uid);
 }
 
-function songButtonMarkup(song) {
+function songMarkup(song) {
   return `
     <span class="song-title">${escapeHtml(song.title)}</span>
     <span class="song-artist">${escapeHtml(song.artist)}</span>
@@ -466,59 +464,49 @@ function songButtonMarkup(song) {
 function renderStats() {
   const pairs = Object.values(state.pairs || {});
 
-  const directionalVotes = pairs.reduce(
+  const directional = pairs.reduce(
     (sum, pair) => sum + (pair.aWins || 0) + (pair.bWins || 0),
     0
   );
 
-  const incomparableVotes = pairs.reduce(
+  const incomparable = pairs.reduce(
     (sum, pair) => sum + (pair.incomparable || 0),
     0
   );
 
-  const totalResponses = directionalVotes + incomparableVotes;
+  const total = directional + incomparable;
 
   statsElement.textContent =
-    `${totalResponses} response${totalResponses === 1 ? "" : "s"} · ` +
-    `${incomparableVotes} incomparable`;
+    `${total} response${total === 1 ? "" : "s"} · ` +
+    `${incomparable} incomparable`;
 }
 
-function renderOrderExplanation(order) {
-  const acceptedCount = order.acceptedRelations.length;
-  const rejected = order.cycleRejectedRelations;
+function renderExplanation(order) {
+  const acceptedCount = order.accepted.length;
+  const rejectedCount = order.cycleRejected.length;
 
-  let html = `
-    <strong>How the crowd partial order is formed</strong>
+  let cycleText;
 
-A directional relation is considered as soon as there is a directional
-response, but it remains visible only when one song receives more than
-50% of all responses for that pair.
-    <p>
-      There ${acceptedCount === 1 ? "is" : "are"} currently
-      <strong>${acceptedCount}</strong> accepted crowd-supported
-      relation${acceptedCount === 1 ? "" : "s"}.
-    </p>
-  `;
-
-  if (rejected.length === 0) {
-    html += `
+  if (rejectedCount === 0) {
+    cycleText = `
       <p>
-        No candidate relations currently conflict with the displayed order.
+        No crowd-supported candidate relation currently conflicts with the
+        accepted partial order.
       </p>
     `;
   } else {
-    html += `
+    cycleText = `
       <p>
-        <strong>${rejected.length}</strong> weaker crowd-supported
-        relation${rejected.length === 1 ? "" : "s"} ${
-          rejected.length === 1 ? "was" : "were"
+        <strong>${rejectedCount}</strong> weaker relation${
+          rejectedCount === 1 ? "" : "s"
+        } ${
+          rejectedCount === 1 ? "was" : "were"
         } excluded because ${
-          rejected.length === 1 ? "it would" : "they would"
-        } create a cycle.
+          rejectedCount === 1 ? "it would" : "they would"
+        } create a cycle:
       </p>
-
       <ul>
-        ${rejected
+        ${order.cycleRejected
           .map((edge) => {
             const preferred = songById.get(edge.from);
             const lessPreferred = songById.get(edge.to);
@@ -527,8 +515,6 @@ response, but it remains visible only when one song receives more than
               <li>
                 ${escapeHtml(preferred.title)} &gt;
                 ${escapeHtml(lessPreferred.title)}
-                was excluded because it conflicts with stronger accepted
-                relationships.
               </li>
             `;
           })
@@ -537,23 +523,38 @@ response, but it remains visible only when one song receives more than
     `;
   }
 
-  html += `
+  explanationElement.innerHTML = `
+    <strong>How this partial order is constructed</strong>
+
     <p>
-      The visible graph is a <em>Hasse diagram</em>, so it removes transitive
-      edges. If A &gt; B and B &gt; C, the implied relation A &gt; C is not
-      shown as an additional line.
+      A directional relation appears only if one song receives more than half
+      of all responses for that pair. Incomparable responses count against
+      directional support, so they can prevent an edge from appearing.
+    </p>
+
+    <p>
+      There ${acceptedCount === 1 ? "is" : "are"} currently
+      <strong>${acceptedCount}</strong> accepted crowd-supported relation${
+        acceptedCount === 1 ? "" : "s"
+      }.
+    </p>
+
+    ${cycleText}
+
+    <p>
+      To resolve cycles, the app considers the strongest supported relations
+      first and refuses any later relation that would create a directed cycle.
+      The visible edges are then transitively reduced to form a Hasse diagram.
     </p>
   `;
-
-  orderExplanationElement.innerHTML = html;
 }
 
 function renderDiagram(edges) {
   svg.selectAll("*").remove();
 
-  const width = 1000;
+  const width = 1500;
   const graph = layoutGraph(edges, width);
-  const height = Math.max(400, graph.height);
+  const height = Math.max(500, graph.height);
 
   svg.attr("viewBox", `0 0 ${width} ${height}`);
 
@@ -573,22 +574,21 @@ function renderDiagram(edges) {
     .attr("d", "M0,-5L10,0L0,5");
 
   /*
-    If no relations have been accepted, the songs form an antichain:
-    they are still valid nodes in the partial order, just with no edges.
+    An empty edge set is a valid partial order: an antichain.
+    Always draw every song node.
   */
   if (edges.length === 0) {
     svg
       .append("text")
       .attr("class", "empty-graph-message")
       .attr("x", width / 2)
-      .attr("y", 38)
+      .attr("y", 42)
       .attr("text-anchor", "middle")
-      .text("No crowd-supported ordering relations yet — songs are currently incomparable.");
+      .text(
+        "No crowd-supported ordering relations yet — songs are currently separate."
+      );
   }
 
-  /*
-    Draw edges only when there are accepted cover relations.
-  */
   svg
     .append("g")
     .selectAll("line")
@@ -596,94 +596,31 @@ function renderDiagram(edges) {
     .join("line")
     .attr("class", "edge")
     .attr("x1", (edge) => graph.positions.get(edge.from).x)
-    .attr("y1", (edge) => graph.positions.get(edge.from).y + 18)
+    .attr("y1", (edge) => graph.positions.get(edge.from).y + 19)
     .attr("x2", (edge) => graph.positions.get(edge.to).x)
-    .attr("y2", (edge) => graph.positions.get(edge.to).y - 18)
+    .attr("y2", (edge) => graph.positions.get(edge.to).y - 19)
     .attr("marker-end", "url(#arrowhead)");
 
-  /*
-    Always draw every song, including isolated nodes.
-  */
-  const nodes = svg
+  const nodeGroups = svg
     .append("g")
     .selectAll("g")
-    .data(graph.nodes)
+    .data(songs)
     .join("g")
-    .attr(
-      "transform",
-      (song) =>
-        `translate(${graph.positions.get(song.id).x}, ${
-          graph.positions.get(song.id).y
-        })`
-    );
+    .attr("transform", (song) => {
+      const position = graph.positions.get(song.id);
+      return `translate(${position.x}, ${position.y})`;
+    });
 
-  nodes.append("circle").attr("class", "node-circle").attr("r", 18);
+  nodeGroups.append("circle").attr("class", "node-circle").attr("r", 18);
 
-  nodes
+  nodeGroups
     .append("text")
     .attr("class", "node-label")
     .attr("x", 28)
     .attr("y", -2)
     .text((song) => song.title);
 
-  nodes
-    .append("text")
-    .attr("class", "node-artist")
-    .attr("x", 28)
-    .attr("y", 14)
-    .text((song) => song.artist);
-}
-
-  const defs = svg.append("defs");
-
-  defs
-    .append("marker")
-    .attr("id", "arrowhead")
-    .attr("viewBox", "0 -5 10 10")
-    .attr("refX", 11)
-    .attr("refY", 0)
-    .attr("markerWidth", 6)
-    .attr("markerHeight", 6)
-    .attr("orient", "auto")
-    .append("path")
-    .attr("fill", "#94a3b8")
-    .attr("d", "M0,-5L10,0L0,5");
-
-  svg
-    .append("g")
-    .selectAll("line")
-    .data(edges)
-    .join("line")
-    .attr("class", "edge")
-    .attr("x1", (edge) => graph.positions.get(edge.from).x)
-    .attr("y1", (edge) => graph.positions.get(edge.from).y + 18)
-    .attr("x2", (edge) => graph.positions.get(edge.to).x)
-    .attr("y2", (edge) => graph.positions.get(edge.to).y - 18)
-    .attr("marker-end", "url(#arrowhead)");
-
-  const nodes = svg
-    .append("g")
-    .selectAll("g")
-    .data(graph.nodes)
-    .join("g")
-    .attr(
-      "transform",
-      (song) =>
-        `translate(${graph.positions.get(song.id).x}, ${
-          graph.positions.get(song.id).y
-        })`
-    );
-
-  nodes.append("circle").attr("class", "node-circle").attr("r", 18);
-
-  nodes
-    .append("text")
-    .attr("class", "node-label")
-    .attr("x", 28)
-    .attr("y", -2)
-    .text((song) => song.title);
-
-  nodes
+  nodeGroups
     .append("text")
     .attr("class", "node-artist")
     .attr("x", 28)
@@ -722,10 +659,7 @@ function layoutGraph(edges, width) {
   const positions = new Map();
   const maxRank = Math.max(...rank.values());
 
-  /*
-    Put isolated nodes lower down to leave room for the explanation message.
-  */
-  const startingY = edges.length === 0 ? 120 : 64;
+  const startY = edges.length === 0 ? 135 : 70;
 
   for (const [level, levelSongs] of levels) {
     levelSongs.sort((a, b) => a.title.localeCompare(b.title));
@@ -735,19 +669,20 @@ function layoutGraph(edges, width) {
     levelSongs.forEach((song, index) => {
       positions.set(song.id, {
         x: spacing * (index + 1),
-        y: startingY + level * 125,
+        y: startY + level * 125,
       });
     });
   }
 
   return {
-    nodes: songs,
     positions,
-    height: startingY + 140 + maxRank * 125,
+    height: startY + maxRank * 125 + 130,
   };
 }
 
-/* ---------- Utilities ---------- */
+/* ------------------------------------------------------------------ */
+/* Utilities                                                          */
+/* ------------------------------------------------------------------ */
 
 function setButtonsDisabled(disabled) {
   buttonA.disabled = disabled;
@@ -765,5 +700,3 @@ function escapeHtml(value) {
   element.textContent = value;
   return element.innerHTML;
 }
-
-start();

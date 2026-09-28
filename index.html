@@ -4,10 +4,6 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Crowd Song Preference Order</title>
-  <meta
-    name="description"
-    content="A live crowd-sourced song preference partial order and Hasse diagram."
-  />
   <link rel="stylesheet" href="style.css" />
 </head>
 
@@ -16,43 +12,52 @@
     <header>
       <p class="eyebrow">Crowd-sourced preference ordering</p>
       <h1>Which song do you prefer?</h1>
+
       <p class="intro">
-        Choose the song you prefer, say that the songs are incomparable, or
-        skip the comparison. The shared partial order updates in real time.
+        Choose a song, declare the pair incomparable, or skip it. The diagram
+        can show either shared crowd data or your own teaching example.
+      </p>
+
+      <div class="mode-controls" aria-label="Choose diagram mode">
+        <button
+          id="crowd-mode-button"
+          class="mode-button active"
+          type="button"
+        >
+          Crowd-sourced order
+        </button>
+
+        <button
+          id="personal-mode-button"
+          class="mode-button"
+          type="button"
+        >
+          My teaching sandbox
+        </button>
+
+        <button
+          id="reset-personal-button"
+          class="reset-button"
+          type="button"
+        >
+          Reset sandbox
+        </button>
+      </div>
+
+      <p id="mode-description" class="mode-description">
+        Crowd mode uses the shared Firebase responses in real time.
       </p>
     </header>
 
-    <div class="mode-controls" aria-label="Data source">
-  <button id="crowd-mode-button" class="mode-button active" type="button">
-    Crowd-sourced order
-  </button>
-
-  <button id="personal-mode-button" class="mode-button" type="button">
-    My teaching sandbox
-  </button>
-
-  <button id="reset-personal-button" class="reset-button" type="button">
-    Reset my sandbox
-  </button>
-</div>
-
-<p id="mode-description" class="mode-description">
-  Crowd mode uses all shared Firebase responses in real time.
-</p>
-
-    <section class="vote-card" aria-labelledby="question">
-      <p id="question" class="question">Choose the response that fits you:</p>
+    <section class="vote-card">
+      <p class="question">Choose the response that fits you:</p>
 
       <div class="comparison">
-        <button id="song-a-button" class="song-button" type="button">
-          Loading song…
-        </button>
+        <button id="song-a-button" class="song-button" type="button"></button>
 
         <span class="versus" aria-hidden="true">VS</span>
 
-        <button id="song-b-button" class="song-button" type="button">
-          Loading song…
-        </button>
+        <button id="song-b-button" class="song-button" type="button"></button>
       </div>
 
       <div class="comparison-actions">
@@ -62,6 +67,7 @@
           type="button"
         >
           <span class="incomparable-icon" aria-hidden="true">↮</span>
+
           <span>
             <strong>Incomparable</strong>
             <small>Neither song is better, in my view</small>
@@ -74,23 +80,22 @@
       </div>
 
       <p class="comparison-help">
-        <strong>Incomparable</strong> records that these songs cannot be
-        meaningfully ordered by your preferences. <strong>Skip</strong>
-        records no response.
+        <strong>Incomparable</strong> means that neither song should be ranked
+        above the other. <strong>Skip</strong> stores no response.
       </p>
 
       <p id="vote-status" class="status" aria-live="polite">
-        Connecting…
+        Loading…
       </p>
     </section>
 
-    <section class="diagram-card" aria-labelledby="diagram-title">
+    <section class="diagram-card">
       <div class="diagram-heading">
         <div>
-          <h2 id="diagram-title">Live Hasse diagram</h2>
+          <h2>Live Hasse diagram</h2>
           <p>
-            Higher songs are crowd-preferred over lower songs. Lines represent
-            direct relations only; implied transitive relations are omitted.
+            Higher songs are preferred over lower songs. Lines show direct
+            relations only.
           </p>
         </div>
 
@@ -98,11 +103,7 @@
       </div>
 
       <div class="graph-container">
-        <svg
-          id="hasse-diagram"
-          role="img"
-          aria-label="Live crowd-sourced song preference Hasse diagram"
-        ></svg>
+        <svg id="hasse-diagram"></svg>
       </div>
 
       <div id="order-explanation" class="order-explanation"></div>
@@ -110,7 +111,7 @@
   </main>
 
   <footer>
-    <p>Built with Firebase Realtime Database and D3.js.</p>
+    <p>Preference partial-order demonstration.</p>
   </footer>
 
   <script type="module" src="app.js"></script>
